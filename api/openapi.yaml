@@ -1,0 +1,49 @@
+openapi: 3.0.0
+info:
+  title: Golang HTTP service API
+  version: 0.0.0
+paths:
+  /users/{userName}:
+    get:
+      summary: Returns a list of users having the same name.
+      operationId: getUsers
+      parameters:
+        - in: path
+          name: userName
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /users:
+    post:
+      summary: Creates a new user.
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '201':
+          description: Created
+components:
+  schemas:
+    User:
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+      required:
+        - id
+        - name
+  responses:
+    UnauthorizedError:
+      description: Access token is missing or invalid

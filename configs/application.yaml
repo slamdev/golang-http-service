@@ -1,0 +1,6 @@
+http:
+  port: 8080
+actuator:
+  port: 9090
+logger:
+  production: false

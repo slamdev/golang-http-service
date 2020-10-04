@@ -1,0 +1,16 @@
+apiVersion: skaffold/v2beta5
+kind: Config
+metadata:
+  name: golang-http-service
+build:
+  tagPolicy:
+    sha256: {}
+  artifacts:
+    - image: slamdev/golang-http-service
+      docker:
+        cacheFrom:
+          - golang:1.15-alpine3.12
+          - alpine:3.12
+          - slamdev/golang-http-service
+deploy:
+  kubectl: {}
