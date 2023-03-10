@@ -1,26 +1,26 @@
-openapi: 3.0.0
+openapi: 3.0.3
 info:
   title: Golang HTTP service API
-  version: 0.0.0
+  version: 1.0.0
+servers:
+  - url: '{host}/api'
+    variables:
+      host:
+        default: http://localhost:8080
 paths:
-  /users/{userName}:
+  /users/v1:
     get:
-      summary: Returns a list of users having the same name.
+      description: Returns a list of users.
       operationId: getUsers
-      parameters:
-        - in: path
-          name: userName
-          required: true
-          schema:
-            type: string
       responses:
         '200':
-          description: OK
+          description: List of users.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
-  /users:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserV1'
     post:
       summary: Creates a new user.
       operationId: createUser
@@ -29,21 +29,105 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/User'
+              $ref: '#/components/schemas/UserV1'
       responses:
         '201':
           description: Created
+        '400':
+          $ref: '#/components/responses/badRequest'
+  /users/v1/{userid}:
+    parameters:
+      - in: path
+        name: userid
+        required: true
+        schema:
+          type: integer
+          format: int32
+          minimum: 0
+    get:
+      description: Returns a user by id.
+      operationId: getUser
+      responses:
+        '200':
+          description: User.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserV1'
+        '404':
+          $ref: '#/components/responses/notFound'
 components:
   schemas:
-    User:
-      properties:
-        id:
-          type: integer
-        name:
-          type: string
+    UserV1:
       required:
         - id
         - name
+      properties:
+        id:
+          type: integer
+          format: int32
+          minimum: 0
+          x-oapi-codegen-extra-tags:
+            validate: min=0
+        name:
+          type: string
+          minLength: 1
+          x-oapi-codegen-extra-tags:
+            validate: min=1
+    ProblemDetail:
+      type: object
+      required:
+        - title
+        - status
+        - detail
+        - instance
+        - type
+        - stackTrace
+        - traceId
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Error title
+          example: Bad Request
+        status:
+          type: integer
+          format: int32
+          minimum: 1
+          description: Error status code
+          example: 400
+        detail:
+          type: string
+          minLength: 1
+          description: Error details
+          example: Validation failed
+        instance:
+          type: string
+          minLength: 1
+          description: Request path
+          example: /api/users/v1
+        traceId:
+          type: string
+          minLength: 1
+          description: Unique ID of this request
+        stackTrace:
+          type: string
+          minLength: 1
+          description: Exception stacktrace
+        type:
+          type: string
+          minLength: 1
+          description: Error type
   responses:
-    UnauthorizedError:
-      description: Access token is missing or invalid
+    badRequest:
+      description: Bad request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'
+    notFound:
+      description: Not found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetail'

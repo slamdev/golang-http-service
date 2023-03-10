@@ -1,6 +1,3 @@
 /.idea/
 /*.iml
-/generated/
 /bin/
-/pkged.go
-/api/*.gen.go

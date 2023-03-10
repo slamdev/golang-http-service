@@ -1,11 +1,14 @@
-package pkg
+package integration
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"github.com/go-playground/validator/v10"
 	"github.com/labstack/echo-contrib/prometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/meysamhadeli/problem-details"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -22,6 +25,10 @@ type httpServer struct {
 	port int32
 }
 
+type CustomValidator struct {
+	validator *validator.Validate
+}
+
 func NewHttpServer(port int32, customizers ...func(echo *echo.Echo)) HttpServer {
 	e := echo.New()
 	e.HideBanner = true
@@ -30,6 +37,8 @@ func NewHttpServer(port int32, customizers ...func(echo *echo.Echo)) HttpServer 
 	e.Logger.SetOutput(zap.NewStdLog(zap.L()).Writer())
 	e.Use(loggerMiddleware())
 	e.Use(middleware.Recover())
+	e.HTTPErrorHandler = handleEchoError
+	e.Validator = &CustomValidator{validator: validator.New()}
 
 	p := prometheus.NewPrometheus("http", nil)
 	e.Use(p.HandlerFunc)
@@ -89,4 +98,23 @@ func loggerMiddleware() echo.MiddlewareFunc {
 			return
 		}
 	}
+}
+
+func handleEchoError(err error, c echo.Context) {
+	if !c.Response().Committed {
+		if _, ok := err.(*echo.HTTPError); ok {
+			// problem-details library expects echo error Message to be `error` type
+			// but it's not always the case, so we set Message to error in case its not
+			if _, ok := err.(*echo.HTTPError).Message.(error); !ok {
+				err.(*echo.HTTPError).Message = errors.New(err.(*echo.HTTPError).Message.(string))
+			}
+		}
+		if _, err := problem.ResolveProblemDetails(c.Response(), c.Request(), err); err != nil {
+			zap.Error(err)
+		}
+	}
+}
+
+func (cv *CustomValidator) Validate(i interface{}) error {
+	return cv.validator.Struct(i)
 }

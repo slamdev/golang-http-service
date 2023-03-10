@@ -1,16 +1,21 @@
 package main
 
 import (
+	"fmt"
 	"go.uber.org/zap"
-	"golang-http-service/internal"
 	"golang-http-service/pkg"
+	"golang-http-service/pkg/integration"
 	"os"
 )
 
 func main() {
-	app, err := internal.NewApp()
+	app, err := pkg.NewApp()
 	if err != nil {
-		zap.L().Error("failed to create app", zap.Error(err))
+		if integration.IsLoggerInitialized() {
+			zap.L().Error("failed to create app", zap.Error(err))
+		} else {
+			fmt.Printf("failed to create app: %+v", err)
+		}
 		os.Exit(1)
 	}
 
@@ -21,7 +26,7 @@ func main() {
 		}
 	}()
 
-	if err := pkg.WaitForShutdown(app.Stop); err != nil {
+	if err := integration.WaitForShutdown(app.Stop); err != nil {
 		zap.L().Error("failed to stop app", zap.Error(err))
 		os.Exit(1)
 	}

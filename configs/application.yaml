@@ -4,3 +4,5 @@ actuator:
   port: 9090
 logger:
   production: false
+# should be the same as server.url in openapi.yaml
+baseUrl: /api
