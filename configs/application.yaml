@@ -1,7 +1,7 @@
 http:
   port: 8080
 actuator:
-  port: 9090
+  port: 8181
 logger:
   production: false
 # should be the same as server.url in openapi.yaml

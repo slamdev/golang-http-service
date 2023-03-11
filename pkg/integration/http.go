@@ -9,6 +9,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/meysamhadeli/problem-details"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -37,6 +38,7 @@ func NewHttpServer(port int32, customizers ...func(echo *echo.Echo)) HttpServer 
 	e.Logger.SetOutput(zap.NewStdLog(zap.L()).Writer())
 	e.Use(loggerMiddleware())
 	e.Use(middleware.Recover())
+	e.Use(otelecho.Middleware("http"))
 	e.HTTPErrorHandler = handleEchoError
 	e.Validator = &CustomValidator{validator: validator.New()}
 
