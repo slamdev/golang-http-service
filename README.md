@@ -2,7 +2,6 @@
 
 TODO:
 
-- embed configs
 - tracing
 - helm chart
 - main pipeline deploys to k3s docker

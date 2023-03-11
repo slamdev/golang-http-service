@@ -1,37 +1,33 @@
 package integration
 
 import (
+	"bytes"
 	"fmt"
-	"github.com/markbates/pkger"
 	"go.uber.org/config"
+	"golang-http-service/configs"
 	"os"
 	"strings"
 )
 
 func PopulateConfig(target interface{}) error {
-	cfgDir, err := pkger.Open("/configs")
-	if err != nil {
-		return fmt.Errorf("failed to open configs dir; %w", err)
-	}
-
-	cfgFiles := []string{"/application.yaml"}
+	cfgFiles := []string{"application.yaml"}
 
 	activeProfilesStr := os.Getenv("ACTIVE_PROFILES")
 	if len(activeProfilesStr) != 0 {
 		activeProfiles := strings.Split(activeProfilesStr, ",")
 		for _, profile := range activeProfiles {
-			file := fmt.Sprintf("/application-%s.yaml", strings.ToLower(strings.TrimSpace(profile)))
+			file := fmt.Sprintf("application-%s.yaml", strings.ToLower(strings.TrimSpace(profile)))
 			cfgFiles = append(cfgFiles, file)
 		}
 	}
 
 	cfgSources := make([]config.YAMLOption, len(cfgFiles))
 	for i, file := range cfgFiles {
-		reader, err := cfgDir.Open(file)
+		content, err := configs.Configs.ReadFile(file)
 		if err != nil {
 			return fmt.Errorf("failed to open %s; %w", file, err)
 		}
-		cfgSources[i] = config.Source(reader)
+		cfgSources[i] = config.Source(bytes.NewReader(content))
 	}
 
 	cfgSources = append(cfgSources, config.Expand(os.LookupEnv))

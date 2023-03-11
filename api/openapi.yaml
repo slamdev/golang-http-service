@@ -1,7 +1,14 @@
 openapi: 3.0.3
 info:
-  title: Golang HTTP service API
+  title: Users API
+  description: "API to manage users"
   version: 1.0.0
+  license:
+    name: Apache License 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  contact:
+    name: slamdev
+    url: https://github.com/slamdev/golang-http-service
 servers:
   - url: '{host}/api'
     variables:
@@ -39,6 +46,7 @@ paths:
     parameters:
       - in: path
         name: userid
+        description: User Id
         required: true
         schema:
           type: integer

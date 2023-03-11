@@ -9,7 +9,6 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/labstack/echo-contrib v0.11.0
 	github.com/labstack/echo/v4 v4.10.2
-	github.com/markbates/pkger v0.17.1
 	github.com/meysamhadeli/problem-details v1.2.4
 	github.com/prometheus/client_golang v1.11.1
 	github.com/stretchr/testify v1.8.1
@@ -29,7 +28,6 @@ require (
 	github.com/go-openapi/swag v0.21.1 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
-	github.com/gobuffalo/here v0.6.0 // indirect
 	github.com/goccy/go-json v0.9.11 // indirect
 	github.com/golang-jwt/jwt v3.2.2+incompatible // indirect
 	github.com/golang/protobuf v1.5.2 // indirect

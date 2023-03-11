@@ -1,37 +1,29 @@
-pkger:
-ifeq (, $(shell which pkger))
-	go install github.com/markbates/pkger/cmd/pkger
+generate:
+	go generate ./...
+
+openapi-lint:
+ifeq (, $(shell which vacuum))
+	$(error vacuum binary is not found in path; install it from https://quobix.com/vacuum/installing/)
 endif
-	pkger
+	vacuum lint -d -n warn -r api/lint-rules.yaml api/openapi.yaml
 
-openapi:
-ifeq (, $(shell which oapi-codegen))
-	go install github.com/deepmap/oapi-codegen/cmd/oapi-codegen
-endif
-	oapi-codegen -package api -generate "types,server" api/openapi.yaml > api/api.gen.go
-
-generate: openapi pkger
-
-spectral:
-ifeq (, $(shell which spectral))
-	curl -L https://raw.githack.com/stoplightio/spectral/master/scripts/install.sh | sh
-endif
-	spectral lint api/openapi.yaml
-
-golangci-lint:
+go-lint:
 ifeq (, $(shell which golangci-lint))
-	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$(go env GOPATH)/bin v1.31.0
+	$(error golangci-lint binary is not found in path; install it from https://golangci-lint.run/usage/install/)
 endif
 	golangci-lint run
 
-lint: spectral golangci-lint
+lint: openapi-lint go-lint
 
 test:
-	go test -v ./internal/...
+	go test -v ./pkg/business/...
 
 verify: lint test
 
-build: generate verify
+assemble: generate
+	go build -o bin/app
+
+build: assemble verify
 	go build -o bin/app
 
 mod:
