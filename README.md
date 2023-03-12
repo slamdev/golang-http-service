@@ -2,7 +2,6 @@
 
 TODO:
 
-- tracing
 - helm chart
 - main pipeline deploys to k3s docker
 - branch pipeline builds and validates service

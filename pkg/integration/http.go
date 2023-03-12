@@ -38,7 +38,7 @@ func NewHttpServer(port int32, customizers ...func(echo *echo.Echo)) HttpServer 
 	e.Logger.SetOutput(zap.NewStdLog(zap.L()).Writer())
 	e.Use(loggerMiddleware())
 	e.Use(middleware.Recover())
-	e.Use(otelecho.Middleware("http"))
+	e.Use(otelecho.Middleware(""))
 	e.HTTPErrorHandler = handleEchoError
 	e.Validator = &CustomValidator{validator: validator.New()}
 
