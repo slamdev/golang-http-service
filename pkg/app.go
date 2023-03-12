@@ -44,7 +44,7 @@ func NewApp() (App, error) {
 	userRepo := control.NewUserRepo()
 	controller := boundary.NewController(userRepo)
 
-	if tp, err := integration.ConfigureTracer(ctx, true); err != nil {
+	if tp, err := integration.ConfigureTracer(ctx, app.config.Tracer.UseStdoutExporter); err != nil {
 		return nil, fmt.Errorf("failed to init tracer; %w", err)
 	} else {
 		app.traceProvider = tp
@@ -101,6 +101,9 @@ type Config struct {
 	}
 	Logger struct {
 		Production bool
+	}
+	Tracer struct {
+		UseStdoutExporter bool `yaml:"useStdoutExporter"`
 	}
 	BaseUrl string `yaml:"baseUrl"`
 }

@@ -1,2 +1,4 @@
 logger:
   production: true
+tracer:
+  useStdoutExporter: false

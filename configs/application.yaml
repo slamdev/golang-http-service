@@ -4,5 +4,7 @@ actuator:
   port: 8181
 logger:
   production: false
+tracer:
+  useStdoutExporter: true
 # should be the same as server.url in openapi.yaml
 baseUrl: /api
