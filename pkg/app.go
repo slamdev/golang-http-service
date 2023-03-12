@@ -3,21 +3,23 @@ package pkg
 import (
 	"context"
 	"fmt"
+	"github.com/go-logr/zapr"
 	"github.com/labstack/echo/v4"
+	"go.opentelemetry.io/contrib/propagators/autoprop"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-	"go.opentelemetry.io/otel/propagation"
-	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/exporters/stdout/stdouttrace"
+	"go.opentelemetry.io/otel/sdk/resource"
+	"go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/semconv/v1.18.0"
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapio"
 	"golang-http-service/api"
 	"golang-http-service/pkg/business/boundary"
 	"golang-http-service/pkg/business/control"
 	"golang-http-service/pkg/integration"
 	"golang.org/x/sync/errgroup"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"net/http"
-	"time"
 )
 
 type App interface {
@@ -29,7 +31,7 @@ type app struct {
 	config         Config
 	actuatorServer integration.ActuatorServer
 	httpServer     integration.HttpServer
-	traceProvider  *sdktrace.TracerProvider
+	traceProvider  *trace.TracerProvider
 }
 
 func NewApp() (App, error) {
@@ -49,7 +51,7 @@ func NewApp() (App, error) {
 	userRepo := control.NewUserRepo()
 	controller := boundary.NewController(userRepo)
 
-	if tp, err := initTracer(); err != nil {
+	if tp, err := initTracer(true); err != nil {
 		return nil, fmt.Errorf("failed to init tracer; %w", err)
 	} else {
 		app.traceProvider = tp
@@ -63,36 +65,37 @@ func NewApp() (App, error) {
 	return &app, nil
 }
 
-func initTracer() (*sdktrace.TracerProvider, error) {
-	//writer := &zapio.Writer{Log: zap.L(), Level: zap.DebugLevel}
-	//exporter, err := stdout.New(stdout.WithWriter(writer))
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	conn, err := grpc.DialContext(ctx, "localhost:4317",
-		// Note the use of insecure transport here. TLS is recommended in production.
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
-	)
+func initTracer(useStdoutExporter bool) (*trace.TracerProvider, error) {
+	var exporter trace.SpanExporter
+	if useStdoutExporter {
+		writer := &zapio.Writer{Log: zap.L(), Level: zap.DebugLevel}
+		var err error
+		if exporter, err = stdouttrace.New(stdouttrace.WithWriter(writer)); err != nil {
+			return nil, err
+		}
+	} else {
+		var err error
+		if exporter, err = otlptracegrpc.New(context.Background()); err != nil {
+			return nil, fmt.Errorf("failed to create trace exporter: %w", err)
+		}
+	}
+	staticRes, err := resource.Merge(resource.Default(), resource.NewSchemaless(semconv.ServiceName("app")))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create gRPC connection to collector: %w", err)
+		return nil, fmt.Errorf("to merge static resources: %w", err)
+	}
+	otelRes, err := resource.Merge(staticRes, resource.Environment())
+	if err != nil {
+		return nil, fmt.Errorf("to merge env resources: %w", err)
 	}
 
-	// Set up a trace exporter
-	exporter, err := otlptracegrpc.New(ctx, otlptracegrpc.WithGRPCConn(conn))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create trace exporter: %w", err)
-	}
-
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-		sdktrace.WithBatcher(exporter),
+	tp := trace.NewTracerProvider(
+		trace.WithBatcher(exporter),
+		trace.WithResource(otelRes),
 	)
+
 	otel.SetTracerProvider(tp)
-	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	otel.SetLogger(zapr.NewLogger(zap.L()))
+	otel.SetTextMapPropagator(autoprop.NewTextMapPropagator())
 	return tp, nil
 }
 

@@ -35,8 +35,8 @@ func (c *controller) CreateUser(ctx context.Context, request api.CreateUserReque
 
 func (c *controller) GetUser(ctx context.Context, request api.GetUserRequestObject) (api.GetUserResponseObject, error) {
 	if u, err := c.userRepo.FindUser(ctx, request.Userid); err != nil {
-		if _, ok := err.(*control.ConstraintViolationError); ok {
-			return nil, echo.NewHTTPError(http.StatusBadRequest, err)
+		if _, ok := err.(*control.EmptyResultSetError); ok {
+			return nil, echo.NewHTTPError(http.StatusNotFound, err)
 		}
 		return nil, fmt.Errorf("failed to create users; %w", err)
 	} else {
