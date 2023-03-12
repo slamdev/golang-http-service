@@ -16,7 +16,7 @@ endif
 lint: openapi-lint go-lint
 
 test:
-	go test -v ./pkg/business/...
+	go test -v -coverprofile=bin/coverage.out $$(go list ./pkg/business/... | grep -v /mock | grep -v /entity)
 
 verify: lint test
 

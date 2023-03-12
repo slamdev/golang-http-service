@@ -5,7 +5,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"golang-http-service/api"
-	"golang-http-service/pkg/business/control"
+	controlmock "golang-http-service/pkg/business/control/mock"
 	"golang-http-service/pkg/business/entity"
 	"testing"
 )
@@ -14,7 +14,7 @@ func TestController_Should_Create_User(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	repo := control.NewMockUserRepo(ctrl)
+	repo := controlmock.NewMockUserRepo(ctrl)
 	c := NewController(repo)
 	ctx := context.Background()
 	name := "some"
