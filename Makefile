@@ -21,7 +21,7 @@ test:
 run: generate
 	go run main.go
 
-e2e-test: generate
+e2e-tests: generate
 	go test -v ./tests/...
 
 verify: lint test
