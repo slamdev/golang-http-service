@@ -3,6 +3,7 @@ on:
   pull_request:
     paths-ignore:
       - 'deployments/**'
+      - 'README.md'
   workflow_dispatch: { }
 defaults: { run: { shell: bash } }
 concurrency:
