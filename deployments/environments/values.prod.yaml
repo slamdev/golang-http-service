@@ -1,0 +1,22 @@
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+ingress:
+  enabled: true
+  hosts:
+    - host: golang-http-service.example.prod
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+resources:
+  requests:
+    cpu: 10m
+    memory: 16Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+podEnv:
+  - name: ACTIVE_PROFILES
+    value: cloud

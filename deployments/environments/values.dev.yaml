@@ -1,0 +1,18 @@
+replicaCount: 2
+ingress:
+  enabled: true
+  hosts:
+    - host: golang-http-service.example.dev
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+resources:
+   requests:
+     cpu: 10m
+     memory: 16Mi
+   limits:
+     cpu: 100m
+     memory: 128Mi
+podEnv:
+  - name: ACTIVE_PROFILES
+    value: cloud

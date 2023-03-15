@@ -1,16 +1,38 @@
-apiVersion: skaffold/v2beta5
+apiVersion: skaffold/v4beta3
 kind: Config
 metadata:
   name: golang-http-service
 build:
-  tagPolicy:
-    sha256: {}
   artifacts:
     - image: slamdev/golang-http-service
-      docker:
-        cacheFrom:
-          - golang:1.15-alpine3.12
-          - alpine:3.12
-          - slamdev/golang-http-service
+      ko:
+        labels:
+          org.opencontainers.image.revision: '{{ .GITHUB_SHA }}'
+          org.opencontainers.image.source: '{{ .GITHUB_SERVER_URL}}/{{.GITHUB_REPOSITORY }}'
+  tagPolicy:
+    inputDigest: { }
+  platforms: [ linux/amd64 ]
+  local:
+    tryImportMissing: true
 deploy:
-  kubectl: {}
+  helm:
+    releases:
+      - name: golang-http-service
+        chartPath: deployments/helm-chart
+        valuesFiles: []
+        setValueTemplates:
+          image.repository: '{{ .IMAGE_REPO_slamdev_golang_http_service }}'
+          image.tag: '{{ .IMAGE_TAG_slamdev_golang_http_service }}@{{ .IMAGE_DIGEST_slamdev_golang_http_service }}'
+profiles:
+  - name: dev
+    patches:
+      - op: add
+        path: /deploy/helm/releases/0/valuesFiles
+        value:
+          - deployments/environments/values.dev.yaml
+  - name: prod
+    patches:
+      - op: add
+        path: /manifests/helm/releases/0/valuesFiles
+        value:
+          - deployments/environments/values.prod.yaml
