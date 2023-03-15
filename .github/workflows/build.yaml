@@ -27,4 +27,5 @@ jobs:
       - name: Run e2e tests
         run: |
           make run &
+          timeout 10 bash -c 'while [[ "$(curl -s -o /dev/null -w ''%{http_code}'' localhost:8181/health)" != "200" ]]; do sleep 1; done' || false
           make e2e-tests
