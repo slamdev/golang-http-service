@@ -4,6 +4,7 @@ TODO:
 
 - main pipeline deploys to k3s docker
 - branch pipeline builds and validates service
+- adjust readme
 
 Template for creating HTTP service
 
@@ -34,6 +35,9 @@ variable. E.g.: `ACTIVE_PROFILES=cloud,dev` will merge these files together:
 environment variables.
 
 Configuration files are embedded into the resulting binary with [pkger](https://github.com/markbates/pkger) tool.
+
+Additionally you can add more configuration files from filesystem by defining `APP_CONFIG_ADDITIONAL_LOCATION` env variable. 
+In this case the app will recursively search for `application.yaml` files in that location. 
 
 ### Monitoring
 
