@@ -19,7 +19,7 @@ jobs:
         uses: actions/setup-go@v3
       - name: Prepare
         run: |
-          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh 
+          curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b /usr/local/bin/
           curl -fsSL https://quobix.com/scripts/install_vacuum.sh | sh 
           go mod download
       - name: Build app
