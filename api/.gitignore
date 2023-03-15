@@ -1,1 +1,2 @@
-/api.gen.go
+/client.gen.go
+/server.gen.go

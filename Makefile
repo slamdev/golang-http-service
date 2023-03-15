@@ -18,13 +18,18 @@ lint: openapi-lint go-lint
 test:
 	go test -v -coverprofile=bin/coverage.out $$(go list ./pkg/business/... | grep -v /mock | grep -v /entity)
 
+run: generate
+	go run main.go
+
+e2e-test: generate
+	go test -v ./tests/...
+
 verify: lint test
 
 assemble: generate
-	go build -o bin/app
+	go build -o bin/app main.go
 
 build: assemble verify
-	go build -o bin/app
 
 mod:
 	go mod tidy

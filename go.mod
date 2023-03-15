@@ -5,6 +5,7 @@ go 1.20
 require (
 	github.com/deepmap/oapi-codegen v1.12.4
 	github.com/getkin/kin-openapi v0.107.0
+	github.com/go-faker/faker/v4 v4.1.0
 	github.com/go-logr/zapr v1.2.3
 	github.com/go-playground/validator/v10 v10.11.2
 	github.com/golang/mock v1.6.0

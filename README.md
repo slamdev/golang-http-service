@@ -4,7 +4,6 @@ TODO:
 
 - main pipeline deploys to k3s docker
 - branch pipeline builds and validates service
-- e2e tests
 
 Template for creating HTTP service
 
