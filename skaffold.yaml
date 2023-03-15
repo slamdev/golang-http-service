@@ -5,6 +5,10 @@ metadata:
 build:
   artifacts:
     - image: slamdev/golang-http-service
+      hooks:
+        before:
+          - command: [ "make", "generate" ]
+            os: [ darwin, linux ]
       ko:
         labels:
           org.opencontainers.image.revision: '{{ .GITHUB_SHA }}'
@@ -19,10 +23,12 @@ deploy:
     releases:
       - name: golang-http-service
         chartPath: deployments/helm-chart
-        valuesFiles: []
+        valuesFiles: [ ]
         setValueTemplates:
           image.repository: '{{ .IMAGE_REPO_slamdev_golang_http_service }}'
           image.tag: '{{ .IMAGE_TAG_slamdev_golang_http_service }}@{{ .IMAGE_DIGEST_slamdev_golang_http_service }}'
+  statusCheck: true
+  statusCheckDeadlineSeconds: 300
 profiles:
   - name: dev
     patches:
