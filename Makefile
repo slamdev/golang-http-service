@@ -21,16 +21,23 @@ test:
 run: generate
 	go run main.go
 
-e2e-tests: generate
-	go test -v ./tests/...
+e2e-tests:
+	go test -timeout 30m -parallel 10 -v ./e2e/...
 
 verify: lint test
 
 assemble: generate
 	go build -o bin/app main.go
 
+assemble-linux: generate
+assemble-linux:
+	env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -o bin/app main.go
+
 build: assemble verify
 
 mod:
 	go mod tidy
 	go mod verify
+
+mod-upgrade:
+	go get -u

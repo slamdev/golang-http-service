@@ -3,26 +3,10 @@ package control
 import (
 	"context"
 	"fmt"
-	"golang-http-service/pkg/business/entity"
 	"math/rand"
+
+	"golang-http-service/pkg/business/entity"
 )
-
-type ConstraintViolationError struct {
-	err        string
-	constraint string
-}
-
-func (e *ConstraintViolationError) Error() string {
-	return fmt.Sprintf("db query failed; %s", e.err)
-}
-
-type EmptyResultSetError struct {
-	err string
-}
-
-func (e *EmptyResultSetError) Error() string {
-	return fmt.Sprintf("db query failed; %s", e.err)
-}
 
 type userRepo struct {
 	db map[int32]entity.User
@@ -43,10 +27,7 @@ func NewUserRepo() UserRepo {
 func (r *userRepo) CreateUser(_ context.Context, u entity.User) error {
 	for i := range r.db {
 		if r.db[i].Name == u.Name {
-			return &ConstraintViolationError{
-				err:        fmt.Sprintf("user with name %s already exists", u.Name),
-				constraint: "UNIQUE_KEY",
-			}
+			return NewValidationError(fmt.Sprintf("user with name %s already exists", u.Name))
 		}
 	}
 	id := int32(rand.Intn(999))
@@ -59,9 +40,7 @@ func (r *userRepo) FindUser(_ context.Context, id int32) (entity.User, error) {
 	if u, ok := r.db[id]; ok {
 		return u, nil
 	}
-	return entity.User{}, &EmptyResultSetError{
-		err: fmt.Sprintf("user with id %d is not found", id),
-	}
+	return entity.User{}, NewMissingEntityError(fmt.Sprintf("user with id %d is not found", id))
 }
 
 func (r *userRepo) FindAllUsers(_ context.Context) []entity.User {

@@ -2,9 +2,10 @@ package control
 
 import (
 	"context"
+	"testing"
+
 	"github.com/stretchr/testify/assert"
 	"golang-http-service/pkg/business/entity"
-	"testing"
 )
 
 func TestUserRepo_Should_Create_User(t *testing.T) {
@@ -28,7 +29,7 @@ func TestUserRepo_Should_Not_Create_User_With_Same_Name(t *testing.T) {
 	_ = r.CreateUser(ctx, entity.User{Name: name})
 
 	err := r.CreateUser(ctx, entity.User{Name: name})
-	var expected *ConstraintViolationError
+	var expected *ValidationError
 	assert.ErrorAs(t, err, &expected)
 }
 
@@ -52,6 +53,6 @@ func TestUserRepo_Should_Fail_To_Find_Absent_User(t *testing.T) {
 	ctx := context.Background()
 
 	_, err := r.FindUser(ctx, 1)
-	var expected *EmptyResultSetError
+	var expected *MissingEntityError
 	assert.ErrorAs(t, err, &expected)
 }

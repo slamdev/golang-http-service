@@ -22,7 +22,7 @@ jobs:
         uses: actions/setup-go@v3
       - name: Prepare
         run: |
-          curl -sLo skaffold https://storage.googleapis.com/skaffold/releases/v2.2.0/skaffold-linux-amd64
+          curl -sLo skaffold https://storage.googleapis.com/skaffold/releases/v2.10.1/skaffold-linux-amd64
           chmod +x skaffold && sudo mv skaffold /usr/local/bin
           skaffold config set --global collect-metrics false
           skaffold config set --global update-check false

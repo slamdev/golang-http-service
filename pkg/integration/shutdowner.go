@@ -2,18 +2,19 @@ package integration
 
 import (
 	"context"
-	"go.uber.org/zap"
-	"golang.org/x/sync/errgroup"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"golang.org/x/sync/errgroup"
 )
 
 func WaitForShutdown(listeners ...func() error) error {
 	var gracefulStop = make(chan os.Signal, 1)
 	signal.Notify(gracefulStop, syscall.SIGTERM, syscall.SIGINT)
 	sig := <-gracefulStop
-	zap.L().Info("shutdown signal received", zap.String("signal", sig.String()))
+	slog.Info("shutdown signal received", "signal", sig.String())
 
 	wg, _ := errgroup.WithContext(context.TODO())
 	for _, listener := range listeners {

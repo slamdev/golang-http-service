@@ -1,4 +1,10 @@
-logger:
-  production: true
-tracer:
-  useStdoutExporter: false
+telemetry:
+  logs:
+    level: INFO
+    format: json
+  metrics:
+    output: remote
+  traces:
+    output: remote
+auth:
+  enabled: true

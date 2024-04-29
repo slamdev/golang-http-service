@@ -1,35 +1,33 @@
 package main
 
 import (
-	"fmt"
-	"go.uber.org/zap"
+	"log/slog"
+	"os"
+
 	"golang-http-service/pkg"
 	"golang-http-service/pkg/integration"
-	"os"
+	_ "golang.org/x/mod/modfile" // transitive dependency that is not recognized by go mod tidy
 )
 
 func main() {
 	app, err := pkg.NewApp()
 	if err != nil {
-		if integration.IsLoggerInitialized() {
-			zap.L().Error("failed to create app", zap.Error(err))
-		} else {
-			fmt.Printf("failed to create app: %+v", err)
-		}
+		slog.Error("failed to create app", "err", err)
 		os.Exit(1)
 	}
 
 	go func() {
 		if err := app.Start(); err != nil {
-			zap.L().Error("failed to start app", zap.Error(err))
+			slog.Error("failed to start app", "err", err)
 			os.Exit(1)
 		}
 	}()
+	slog.Info("app is running")
 
 	if err := integration.WaitForShutdown(app.Stop); err != nil {
-		zap.L().Error("failed to stop app", zap.Error(err))
+		slog.Error("failed to stop app", "err", err)
 		os.Exit(1)
 	}
 
-	zap.L().Info("app is stopped")
+	slog.Info("app is stopped")
 }

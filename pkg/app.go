@@ -2,16 +2,15 @@ package pkg
 
 import (
 	"context"
+	"errors"
 	"fmt"
-	"github.com/labstack/echo/v4"
+
+	"github.com/alexliesenfeld/health"
+	"go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/trace"
-	"go.uber.org/zap"
-	"golang-http-service/api"
 	"golang-http-service/pkg/business/boundary"
 	"golang-http-service/pkg/business/control"
 	"golang-http-service/pkg/integration"
-	"golang.org/x/sync/errgroup"
-	"net/http"
 )
 
 type App interface {
@@ -20,10 +19,11 @@ type App interface {
 }
 
 type app struct {
-	config         Config
-	actuatorServer integration.ActuatorServer
-	httpServer     integration.HttpServer
+	config         integration.Config
+	actuatorServer integration.HttpServer
+	apiServer      integration.HttpServer
 	traceProvider  *trace.TracerProvider
+	metricProvider *metric.MeterProvider
 }
 
 func NewApp() (App, error) {
@@ -33,48 +33,64 @@ func NewApp() (App, error) {
 		return nil, fmt.Errorf("failed to populate config; %w", err)
 	}
 
-	if err := integration.ConfigureLogger(app.config.Logger.Production); err != nil {
-		return nil, fmt.Errorf("failed to configure logger; %w", err)
+	telemetryResource, err := integration.CreateTelemetryResource(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create telemetry resource; %w", err)
 	}
 
-	zap.S().Infow("starting app", "config", app.config)
+	if err := integration.ConfigureLogProvider(telemetryResource, app.config.Telemetry.Logs.Level, app.config.Telemetry.Logs.Format); err != nil {
+		return nil, fmt.Errorf("failed to init log provider; %w", err)
+	}
 
-	app.actuatorServer = integration.NewActuatorServer(app.config.Actuator.Port)
-
-	userRepo := control.NewUserRepo()
-	controller := boundary.NewController(userRepo)
-
-	if tp, err := integration.ConfigureTracer(ctx, app.config.Tracer.UseStdoutExporter); err != nil {
+	if tp, err := integration.ConfigureTraceProvider(ctx, telemetryResource, app.config.Telemetry.Traces.Output); err != nil {
 		return nil, fmt.Errorf("failed to init tracer; %w", err)
 	} else {
 		app.traceProvider = tp
 	}
 
-	app.httpServer = integration.NewHttpServer(app.config.Http.Port, func(echo *echo.Echo) {
-		handler := api.NewStrictHandler(controller, []api.StrictMiddlewareFunc{validationMiddleware})
-		api.RegisterHandlersWithBaseURL(echo, handler, app.config.BaseUrl)
-	})
+	if mp, err := integration.ConfigureMetricProvider(ctx, telemetryResource, app.config.Telemetry.Metrics.Output); err != nil {
+		return nil, fmt.Errorf("failed to init metric provider; %w", err)
+	} else {
+		app.metricProvider = mp
+	}
 
+	_, err = integration.CreatePetStoreAPIClient(app.config.Petstore.Url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create harbor client; %w", err)
+	}
+
+	userRepo := control.NewUserRepo()
+	controller := boundary.NewController(userRepo)
+
+	roleDefs := make(map[string]string)
+	for _, role := range app.config.Auth.Roles {
+		roleDefs[role.Name] = role.Audience
+	}
+
+	apiHandler, err := integration.APIHandler(app.config.BaseUrl, controller, app.config.Auth.Enabled, app.config.Auth.JwkSetUri, app.config.Auth.AllowedIssuers, roleDefs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create api handler; %w", err)
+	}
+	app.apiServer = integration.NewHttpServer(app.config.Http.Port, apiHandler)
+
+	exampleCheck := health.Check{
+		Name:  "db",
+		Check: func(ctx context.Context) error { return nil },
+	}
+
+	app.actuatorServer = integration.NewHttpServer(app.config.Actuator.Port, integration.TelemetryHandler(exampleCheck))
 	return &app, nil
 }
 
-func validationMiddleware(f api.StrictHandlerFunc, _ string) api.StrictHandlerFunc {
-	return func(ctx echo.Context, i interface{}) (interface{}, error) {
-		if err := ctx.Validate(i); err != nil {
-			return nil, echo.NewHTTPError(http.StatusBadRequest, err)
-		}
-		return f(ctx, i)
-	}
-}
-
 func (a *app) Start() error {
-	done := make(chan error, 2)
-	go func() {
-		done <- a.actuatorServer.Start()
-	}()
-	go func() {
-		done <- a.httpServer.Start()
-	}()
+	starters := []func() error{
+		a.actuatorServer.Start,
+		a.apiServer.Start,
+	}
+	done := make(chan error, len(starters))
+	for i := range starters {
+		go func() { done <- starters[i]() }()
+	}
 	for i := 0; i < cap(done); i++ {
 		if err := <-done; err != nil {
 			return err
@@ -85,25 +101,10 @@ func (a *app) Start() error {
 
 func (a *app) Stop() error {
 	ctx := context.TODO()
-	wg, _ := errgroup.WithContext(ctx)
-	wg.Go(func() error { return a.actuatorServer.Stop(ctx) })
-	wg.Go(func() error { return a.httpServer.Stop(ctx) })
-	wg.Go(func() error { return a.traceProvider.Shutdown(ctx) })
-	return wg.Wait()
-}
-
-type Config struct {
-	Http struct {
-		Port int32
-	}
-	Actuator struct {
-		Port int32
-	}
-	Logger struct {
-		Production bool
-	}
-	Tracer struct {
-		UseStdoutExporter bool `yaml:"useStdoutExporter"`
-	}
-	BaseUrl string `yaml:"baseUrl"`
+	return errors.Join(
+		a.actuatorServer.Stop(ctx),
+		a.apiServer.Stop(ctx),
+		a.traceProvider.Shutdown(ctx),
+		a.metricProvider.Shutdown(ctx),
+	)
 }

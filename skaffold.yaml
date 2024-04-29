@@ -1,4 +1,4 @@
-apiVersion: skaffold/v4beta3
+apiVersion: skaffold/v4beta9
 kind: Config
 metadata:
   name: golang-http-service
@@ -7,17 +7,23 @@ build:
     - image: slamdev/golang-http-service
       hooks:
         before:
-          - command: [ "make", "generate" ]
+          - command: [ make, assemble-linux ]
             os: [ darwin, linux ]
-      ko:
-        labels:
-          org.opencontainers.image.revision: '{{ .GITHUB_SHA }}'
-          org.opencontainers.image.source: '{{ .GITHUB_SERVER_URL}}/{{.GITHUB_REPOSITORY }}'
+      custom:
+        buildCommand: docker buildx build --tag=$IMAGE --push --platform=$PLATFORMS --quiet .
+        dependencies:
+          paths:
+            - "api/**"
+            - "configs/**"
+            - "pkg/**"
+            - "go.mod"
+            - "go.sum"
+            - "main.go"
+            - "Dockerfile"
+            - "Makefile"
   tagPolicy:
     inputDigest: { }
   platforms: [ linux/amd64 ]
-  local:
-    tryImportMissing: true
 deploy:
   helm:
     releases:
@@ -29,6 +35,7 @@ deploy:
           image.tag: '{{ .IMAGE_TAG_slamdev_golang_http_service }}@{{ .IMAGE_DIGEST_slamdev_golang_http_service }}'
   statusCheck: true
   statusCheckDeadlineSeconds: 300
+  tolerateFailuresUntilDeadline: true
 profiles:
   - name: dev
     patches:

@@ -1,3 +1,6 @@
+//go:build tools
+// +build tools
+
 package control
 
 import _ "github.com/golang/mock/mockgen/model"

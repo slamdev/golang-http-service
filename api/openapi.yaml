@@ -10,10 +10,7 @@ info:
     name: slamdev
     url: https://github.com/slamdev/golang-http-service
 servers:
-  - url: '{host}/api'
-    variables:
-      host:
-        default: http://localhost:8080
+  - url: '/api'
 paths:
   /users/v1:
     get:
@@ -63,7 +60,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserV1'
         '404':
-          $ref: '#/components/responses/notFound'
+           $ref: '#/components/responses/notFound'
 components:
   schemas:
     UserV1:
@@ -90,7 +87,6 @@ components:
         - detail
         - instance
         - type
-        - stackTrace
         - traceId
       properties:
         title:
@@ -100,7 +96,6 @@ components:
           example: Bad Request
         status:
           type: integer
-          format: int32
           minimum: 1
           description: Error status code
           example: 400
@@ -109,6 +104,7 @@ components:
           minLength: 1
           description: Error details
           example: Validation failed
+          x-go-type: error
         instance:
           type: string
           minLength: 1
@@ -118,10 +114,6 @@ components:
           type: string
           minLength: 1
           description: Unique ID of this request
-        stackTrace:
-          type: string
-          minLength: 1
-          description: Exception stacktrace
         type:
           type: string
           minLength: 1

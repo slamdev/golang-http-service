@@ -1,10 +1,13 @@
-extends: [[spectral:oas, all]]
+# yaml-language-server: $schema=https://raw.githubusercontent.com/daveshanley/vacuum/main/rulesets/schemas/ruleset.schema.json
+extends: [ [ spectral:oas, all ] ]
 rules:
   info-license: off
-  info-contact: off
   contact-properties: off
   operation-4xx-response: off
   operation-tags: off
   openapi-tags: off
   oas3-valid-schema-example: off
   operation-description: off
+  component-description: off
+  description-duplication: off
+  oas3-missing-example: off

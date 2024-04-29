@@ -2,9 +2,24 @@ http:
   port: 8080
 actuator:
   port: 8181
-logger:
-  production: false
-tracer:
-  useStdoutExporter: true
+telemetry:
+  logs:
+    level: DEBUG
+    format: text
+  metrics:
+    output: noop
+  traces:
+    output: noop
+auth:
+  enabled: false
+  jwkSetUri: https://login.microsoftonline.com/common/discovery/v2.0/keys
+  allowedIssuers:
+    - https://sts.windows.net/123/
+    - https://login.microsoftonline.com/123/v2.0
+  roles:
+    - name: superuser
+      audience: api://azure-app-name
+petstore:
+  url: https://petstore3.swagger.io/api/v3
 # should be the same as server.url in openapi.yaml
 baseUrl: /api

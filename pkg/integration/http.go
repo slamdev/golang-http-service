@@ -2,18 +2,16 @@ package integration
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/go-playground/validator/v10"
-	"github.com/labstack/echo-contrib/prometheus"
-	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
-	"github.com/meysamhadeli/problem-details"
-	"go.opentelemetry.io/contrib/instrumentation/github.com/labstack/echo/otelecho"
-	"go.uber.org/zap"
+	"log/slog"
 	"net/http"
-	"strconv"
 	"time"
+
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+	"golang-http-service/api"
 )
 
 type HttpServer interface {
@@ -22,101 +20,64 @@ type HttpServer interface {
 }
 
 type httpServer struct {
-	e    *echo.Echo
-	port int32
+	srv *http.Server
 }
 
-type CustomValidator struct {
-	validator *validator.Validate
-}
-
-func NewHttpServer(port int32, customizers ...func(echo *echo.Echo)) HttpServer {
-	e := echo.New()
-	e.HideBanner = true
-	e.HidePort = true
-	e.Logger.SetHeader("${prefix}")
-	e.Logger.SetOutput(zap.NewStdLog(zap.L()).Writer())
-	e.Use(loggerMiddleware())
-	e.Use(middleware.Recover())
-	e.Use(otelecho.Middleware(""))
-	e.HTTPErrorHandler = handleEchoError
-	e.Validator = &CustomValidator{validator: validator.New()}
-
-	p := prometheus.NewPrometheus("http", nil)
-	e.Use(p.HandlerFunc)
-
-	for _, c := range customizers {
-		c(e)
+func NewHttpServer(port int32, handler http.Handler) HttpServer {
+	srv := http.Server{
+		Addr: fmt.Sprintf(":%d", port), Handler: handler,
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  120 * time.Second,
 	}
-	return &httpServer{e: e, port: port}
+	return &httpServer{srv: &srv}
 }
 
 func (h *httpServer) Start() (err error) {
-	if err = h.e.Start(fmt.Sprintf(":%d", h.port)); err != nil && err != http.ErrServerClosed {
+	if err = h.srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
 }
 
 func (h *httpServer) Stop(ctx context.Context) error {
-	return h.e.Shutdown(ctx)
+	return h.srv.Shutdown(ctx)
 }
 
-func loggerMiddleware() echo.MiddlewareFunc {
-	return func(next echo.HandlerFunc) echo.HandlerFunc {
-		return func(c echo.Context) (err error) {
-			req := c.Request()
-			res := c.Response()
-			start := time.Now()
-			if err = next(c); err != nil {
-				c.Error(err)
+func HandleHTTPBadRequest(w http.ResponseWriter, r *http.Request, err error) {
+	status := http.StatusBadRequest
+	p := createAndRecordProblemDetail(r.Context(), status, err)
+	writeProblem(w, r, p)
+}
 
-				httpErr, ok := err.(*echo.HTTPError)
-				if ok {
-					if httpErr.Internal != nil {
-						err = httpErr.Internal
-					} else {
-						err = fmt.Errorf("%v", httpErr.Message)
-					}
-				}
-			}
-			stop := time.Now()
+func HandleHTTPNotFound(w http.ResponseWriter, r *http.Request) {
+	status := http.StatusNotFound
+	p := createAndRecordProblemDetail(r.Context(), status, nil)
+	writeProblem(w, r, p)
+}
 
-			bytesIn, _ := strconv.Atoi(req.Header.Get(echo.HeaderContentLength))
+func HandleHTTPUnauthorized(w http.ResponseWriter, r *http.Request, err error) {
+	status := http.StatusUnauthorized
+	p := createAndRecordProblemDetail(r.Context(), status, err)
+	writeProblem(w, r, p)
+}
 
-			zap.L().Info("access",
-				zap.String("remote-ip", c.RealIP()),
-				zap.String("host", req.Host),
-				zap.String("uri", req.RequestURI),
-				zap.String("method", req.Method),
-				zap.String("path", req.URL.Path),
-				zap.String("referer", req.Referer()),
-				zap.Int("status", res.Status),
-				zap.Error(err),
-				zap.Duration("latency", stop.Sub(start)),
-				zap.Int("bytes-in", bytesIn),
-				zap.Int64("bytes-out", res.Size),
-			)
-			return
-		}
+func HandleHTTPServerError(w http.ResponseWriter, r *http.Request, err error) {
+	slog.ErrorContext(r.Context(), "unexpected error occurred", "err", err)
+
+	status := http.StatusInternalServerError
+	p := createAndRecordProblemDetail(r.Context(), status, err)
+	writeProblem(w, r, p)
+}
+
+func writeProblem(w http.ResponseWriter, r *http.Request, p api.ProblemDetail) {
+	span := trace.SpanFromContext(r.Context())
+	span.RecordError(p.Detail)
+	span.SetStatus(codes.Error, p.Title)
+
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(p.Status)
+	if err := json.NewEncoder(w).Encode(p); err != nil {
+		slog.ErrorContext(r.Context(), "failed to write problem to response", "err", err)
 	}
-}
-
-func handleEchoError(err error, c echo.Context) {
-	if !c.Response().Committed {
-		if _, ok := err.(*echo.HTTPError); ok {
-			// problem-details library expects echo error Message to be `error` type
-			// but it's not always the case, so we set Message to error in case its not
-			if _, ok := err.(*echo.HTTPError).Message.(error); !ok {
-				err.(*echo.HTTPError).Message = errors.New(err.(*echo.HTTPError).Message.(string))
-			}
-		}
-		if _, err := problem.ResolveProblemDetails(c.Response(), c.Request(), err); err != nil {
-			zap.Error(err)
-		}
-	}
-}
-
-func (cv *CustomValidator) Validate(i interface{}) error {
-	return cv.validator.Struct(i)
 }

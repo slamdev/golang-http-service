@@ -3,11 +3,11 @@ package boundary
 import (
 	"context"
 	"fmt"
-	"github.com/labstack/echo/v4"
+
 	"golang-http-service/api"
 	"golang-http-service/pkg/business/control"
 	"golang-http-service/pkg/business/entity"
-	"net/http"
+	"golang-http-service/pkg/integration"
 )
 
 type controller struct {
@@ -25,8 +25,9 @@ func (c *controller) CreateUser(ctx context.Context, request api.CreateUserReque
 		Name: request.Body.Name,
 	}
 	if err := c.userRepo.CreateUser(ctx, u); err != nil {
-		if _, ok := err.(*control.ConstraintViolationError); ok {
-			return nil, echo.NewHTTPError(http.StatusBadRequest, err)
+		if control.IsValidationError(err) {
+			p := integration.BadRequestError(ctx, err)
+			return api.CreateUser400ApplicationProblemPlusJSONResponse{BadRequestApplicationProblemPlusJSONResponse: p}, nil
 		}
 		return nil, fmt.Errorf("failed to create users; %w", err)
 	}
@@ -35,8 +36,9 @@ func (c *controller) CreateUser(ctx context.Context, request api.CreateUserReque
 
 func (c *controller) GetUser(ctx context.Context, request api.GetUserRequestObject) (api.GetUserResponseObject, error) {
 	if u, err := c.userRepo.FindUser(ctx, request.Userid); err != nil {
-		if _, ok := err.(*control.EmptyResultSetError); ok {
-			return nil, echo.NewHTTPError(http.StatusNotFound, err)
+		if control.IsMissingEntityError(err) {
+			p := integration.NotFoundError(ctx, err)
+			return api.GetUser404ApplicationProblemPlusJSONResponse{NotFoundApplicationProblemPlusJSONResponse: p}, nil
 		}
 		return nil, fmt.Errorf("failed to create users; %w", err)
 	} else {
